@@ -231,3 +231,17 @@ if uploaded_file:
                 file_name="final_document.pdf",
                 mime="application/pdf"
             )
+
+
+
+# Add footer at end of each tab if needed
+st.markdown("---")
+st.markdown(
+    """
+    <div style="text-align: center; color: #888; font-size: 1rem; padding: 12px 0;">
+        © 2026 Tarek Kamal / PDF Advanced Viewer – Proprietary Software<br>
+        All Rights Reserved – Private Property – For internal use only
+    </div>
+    """,
+    unsafe_allow_html=True
+)
