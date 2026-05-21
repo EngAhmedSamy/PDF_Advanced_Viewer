@@ -179,35 +179,42 @@ if uploaded_file:
         # Insert Separator
         # -----------------------------
         if idx < len(st.session_state.pages) - 1:
-
-            with st.expander(f"➕ Add Separator After Page {idx + 1}"):
-
+                        
+            st.markdown("### ➕ Add Separator")
+            
+            col_sep1, col_sep2 = st.columns([3, 1])
+            
+            with col_sep1:
                 separator_text = st.text_input(
                     "Separator Title",
                     value="SECTION",
                     key=f"separator_text_{idx}"
                 )
-
+            
+            with col_sep2:
+                st.write("")
+                st.write("")
+            
                 if st.button(
-                    "Insert Red Separator",
+                    "Insert",
                     key=f"insert_separator_{idx}"
                 ):
-
+            
                     separator_img = create_red_separator(separator_text)
-
+            
                     separator_page = {
                         "type": "separator",
                         "image": separator_img,
                         "label": separator_text
                     }
-
+            
                     st.session_state.pages.insert(
                         idx + 1,
                         separator_page
                     )
-
+            
                     st.rerun()
-
+    
     # -----------------------------
     # Export
     # -----------------------------
