@@ -1,0 +1,167 @@
+import streamlit as st
+from PyPDF2 import PdfReader, PdfWriter
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from io import BytesIO
+import fitz  # PyMuPDF
+from PIL import Image
+
+st.set_page_config(layout="wide")
+
+st.title("Advanced PDF Editor")
+
+uploaded_file = st.file_uploader("Upload PDF", type=["pdf"])
+
+# =========================
+# CREATE SEPARATOR PAGE
+# =========================
+def create_separator_page(text="Paper Splitter"):
+    packet = BytesIO()
+
+    can = canvas.Canvas(packet, pagesize=letter)
+    can.setFont("Helvetica-Bold", 30)
+    can.drawCentredString(300, 400, text)
+    can.save()
+
+    packet.seek(0)
+    return PdfReader(packet)
+
+# =========================
+# SESSION STATES
+# =========================
+if "splitters" not in st.session_state:
+    st.session_state.splitters = set()
+
+if "deleted_pages" not in st.session_state:
+    st.session_state.deleted_pages = set()
+
+if "rotations" not in st.session_state:
+    st.session_state.rotations = {}
+
+if uploaded_file:
+
+    uploaded_file.seek(0)
+    pdf_reader = PdfReader(uploaded_file)
+
+    uploaded_file.seek(0)
+    doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
+
+    st.subheader("PDF Preview")
+
+    total_pages = len(doc)
+
+    # =========================
+    # PAGE PREVIEW
+    # =========================
+    for i in range(total_pages):
+
+        if i in st.session_state.deleted_pages:
+            continue
+
+        page = doc.load_page(i)
+
+        pix = page.get_pixmap(matrix=fitz.Matrix(1.5, 1.5))
+
+        img = Image.frombytes(
+            "RGB",
+            [pix.width, pix.height],
+            pix.samples
+        )
+
+        st.image(img, caption=f"Page {i+1}", use_container_width=True)
+
+        col1, col2, col3 = st.columns(3)
+
+        # =========================
+        # DELETE PAGE
+        # =========================
+        with col1:
+            if st.button(f"Delete Page {i+1}", key=f"delete_{i}"):
+
+                st.session_state.deleted_pages.add(i)
+
+        # =========================
+        # ROTATE PAGE
+        # =========================
+        with col2:
+            if st.button(f"Rotate 90° Page {i+1}", key=f"rotate_{i}"):
+
+                current_rotation = st.session_state.rotations.get(i, 0)
+
+                st.session_state.rotations[i] = (
+                    current_rotation + 90
+                ) % 360
+
+        # =========================
+        # ADD SPLITTER
+        # =========================
+        with col3:
+            if i < total_pages - 1:
+
+                if st.button(
+                    f"+ Add Splitter After {i+1}",
+                    key=f"split_{i}"
+                ):
+
+                    st.session_state.splitters.add(i)
+
+        st.divider()
+
+    # =========================
+    # PAGE ORDER (DRAG STYLE)
+    # =========================
+    st.subheader("Reorder Pages")
+
+    available_pages = [
+        i + 1
+        for i in range(total_pages)
+        if i not in st.session_state.deleted_pages
+    ]
+
+    new_order = st.multiselect(
+        "Select pages in the order you want",
+        available_pages,
+        default=available_pages
+    )
+
+    # =========================
+    # GENERATE NEW PDF
+    # =========================
+    pdf_writer = PdfWriter()
+
+    for page_num in new_order:
+
+        index = page_num - 1
+
+        if index in st.session_state.deleted_pages:
+            continue
+
+        page = pdf_reader.pages[index]
+
+        # Apply rotation
+        rotation = st.session_state.rotations.get(index, 0)
+
+        if rotation != 0:
+            page.rotate(rotation)
+
+        pdf_writer.add_page(page)
+
+        # Add splitter page
+        if index in st.session_state.splitters:
+
+            separator_pdf = create_separator_page()
+
+            pdf_writer.add_page(separator_pdf.pages[0])
+
+    output_pdf = BytesIO()
+
+    pdf_writer.write(output_pdf)
+
+    output_pdf.seek(0)
+
+    st.download_button(
+        label="Save PDF",
+        data=output_pdf,
+        file_name="edited_pdf.pdf",
+        mime="application/pdf"
+    )
