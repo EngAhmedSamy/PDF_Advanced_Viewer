@@ -1,5 +1,0 @@
-streamlit
-PyPDF2
-reportlab
-PyMuPDF
-Pillow
